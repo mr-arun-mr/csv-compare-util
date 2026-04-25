@@ -1,0 +1,4 @@
+pandas>=2.0.0
+rapidfuzz>=3.0.0
+click>=8.0.0
+jinja2>=3.0.0
