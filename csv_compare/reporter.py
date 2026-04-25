@@ -410,8 +410,9 @@ def generate_report(
     results: List[FileComparisonResult],
     output_dir: Path,
     run_label: str,
+    include_history: bool = True,
 ) -> Path:
-    history = load_history(output_dir)
+    history = load_history(output_dir) if include_history else []
 
     total_rows = sum(r.total_expected for r in results)
     matched_rows = sum(r.matched_rows for r in results)

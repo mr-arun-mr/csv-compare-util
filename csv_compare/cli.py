@@ -40,12 +40,24 @@ from .resolver import pair_files
     "--label", "-l", default=None,
     help="Optional label for this run shown in trend charts (defaults to current timestamp).",
 )
-def main(expected: str, actual: str, output: str, row_key: str, fuzzy_threshold: float, label: str | None) -> None:
+@click.option(
+    "--no-history", "skip_history", is_flag=True, default=False,
+    help="Disable history tracking. No history is saved and trend charts are omitted.",
+)
+def main(
+    expected: str,
+    actual: str,
+    output: str,
+    row_key: str,
+    fuzzy_threshold: float,
+    label: str | None,
+    skip_history: bool,
+) -> None:
     """Compare CSV files and generate an HTML comparison report."""
     output_dir = Path(output)
     run_label = label or datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    click.echo(f"Resolving file pairs...")
+    click.echo("Resolving file pairs...")
     try:
         pairs = pair_files(expected, actual)
     except (FileNotFoundError, ValueError) as exc:
@@ -69,10 +81,11 @@ def main(expected: str, actual: str, output: str, row_key: str, fuzzy_threshold:
     if not results:
         raise click.ClickException("No files were successfully compared.")
 
-    click.echo("Saving history...")
-    save_run(output_dir, results, run_label)
+    if not skip_history:
+        click.echo("Saving history...")
+        save_run(output_dir, results, run_label)
 
     click.echo("Generating HTML report...")
-    report_path = generate_report(results, output_dir, run_label)
+    report_path = generate_report(results, output_dir, run_label, include_history=not skip_history)
 
     click.echo(f"\nReport written to: {report_path}")
