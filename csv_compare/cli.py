@@ -89,3 +89,7 @@ def main(
     report_path = generate_report(results, output_dir, run_label, include_history=not skip_history)
 
     click.echo(f"\nReport written to: {report_path}")
+
+
+if __name__ == "__main__":
+    main()

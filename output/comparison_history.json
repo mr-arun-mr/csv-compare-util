@@ -1,0 +1,94 @@
+[
+  {
+    "timestamp": "2026-04-26T19:21:56",
+    "label": "2026-04-26 19:21:56",
+    "files_compared": 1,
+    "total_rows": 100,
+    "overall_match_pct": 99.63,
+    "row_match_pct": 99.0,
+    "attribute_match_pcts": {
+      "Customer Id": 100.0,
+      "First Name": 97.98,
+      "Last Name": 100.0,
+      "Company": 100.0,
+      "City": 100.0,
+      "Country": 100.0,
+      "Phone 1": 100.0,
+      "Phone 2": 98.99,
+      "Email": 98.99,
+      "Subscription Date": 100.0,
+      "Website": 100.0
+    },
+    "file_results": [
+      {
+        "expected_file": "customers.csv",
+        "actual_file": "customers_actual.csv",
+        "total_expected": 100,
+        "total_actual": 99,
+        "matched_rows": 99,
+        "fully_matched_rows": 96,
+        "row_match_pct": 99.0,
+        "overall_match_pct": 99.63,
+        "attribute_match_pcts": {
+          "Customer Id": 100.0,
+          "First Name": 97.98,
+          "Last Name": 100.0,
+          "Company": 100.0,
+          "City": 100.0,
+          "Country": 100.0,
+          "Phone 1": 100.0,
+          "Phone 2": 98.99,
+          "Email": 98.99,
+          "Subscription Date": 100.0,
+          "Website": 100.0
+        }
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-04-26T19:23:35",
+    "label": "2026-04-26 19:23:35",
+    "files_compared": 1,
+    "total_rows": 100,
+    "overall_match_pct": 99.63,
+    "row_match_pct": 99.0,
+    "attribute_match_pcts": {
+      "Customer Id": 100.0,
+      "First Name": 97.98,
+      "Last Name": 100.0,
+      "Company": 100.0,
+      "City": 100.0,
+      "Country": 100.0,
+      "Phone 1": 100.0,
+      "Phone 2": 98.99,
+      "Email": 98.99,
+      "Subscription Date": 100.0,
+      "Website": 100.0
+    },
+    "file_results": [
+      {
+        "expected_file": "customers.csv",
+        "actual_file": "customers_actual.csv",
+        "total_expected": 100,
+        "total_actual": 99,
+        "matched_rows": 99,
+        "fully_matched_rows": 96,
+        "row_match_pct": 99.0,
+        "overall_match_pct": 99.63,
+        "attribute_match_pcts": {
+          "Customer Id": 100.0,
+          "First Name": 97.98,
+          "Last Name": 100.0,
+          "Company": 100.0,
+          "City": 100.0,
+          "Country": 100.0,
+          "Phone 1": 100.0,
+          "Phone 2": 98.99,
+          "Email": 98.99,
+          "Subscription Date": 100.0,
+          "Website": 100.0
+        }
+      }
+    ]
+  }
+]

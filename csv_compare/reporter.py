@@ -46,6 +46,10 @@ _TEMPLATE = r"""<!DOCTYPE html>
     .sticky-col { position: sticky; left: 0; background: #fff; z-index: 1; }
     table.dataTable thead th { white-space: nowrap; }
     .legend-box { display: inline-block; width: 14px; height: 14px; margin-right: 4px; vertical-align: middle; }
+    .subtab-pane { display: none; }
+    .subtab-pane.show { display: block; }
+    .nav-tabs .nav-link { color: #495057; cursor: pointer; }
+    .nav-tabs .nav-link.active { color: #0d6efd; font-weight: 600; }
   </style>
 </head>
 <body>
@@ -167,16 +171,20 @@ _TEMPLATE = r"""<!DOCTYPE html>
 
     <!-- ====================================================== PER-FILE ===== -->
     {% for r in results %}
-    <div class="tab-pane fade" id="file{{ loop.index }}">
+    {% set fi = loop.index %}
+    <div class="tab-pane fade" id="file{{ fi }}">
       <h5>{{ r.expected_file | basename }} vs {{ r.actual_file | basename }}</h5>
 
       <!-- File metrics -->
       <div class="row g-2 mb-3">
+        {% set missing_count = r.rows | selectattr('status','eq','missing_in_actual') | list | length %}
+        {% set extra_count   = r.rows | selectattr('status','eq','extra_in_actual')   | list | length %}
+        {% set mismatch_rows = r.rows | selectattr('status','eq','compared') | rejectattr('row_match_pct','eq',100.0) | list | length %}
         {% set metrics = [
-          ('Overall Match', r.overall_match_pct),
-          ('Row Match', r.row_match_pct),
-          ('Matched Rows', r.matched_rows ~ ' / ' ~ r.total_expected),
-          ('Extra in Actual', r.rows | selectattr('status','eq','extra_in_actual') | list | length),
+          ('Overall Match',    r.overall_match_pct),
+          ('Row Match',        r.row_match_pct),
+          ('Mismatched Rows',  mismatch_rows),
+          ('Missing / Extra',  missing_count ~ ' / ' ~ extra_count),
         ] %}
         {% for label, val in metrics %}
         <div class="col-6 col-md-3">
@@ -194,64 +202,163 @@ _TEMPLATE = r"""<!DOCTYPE html>
       {% if r.attribute_match_pcts %}
       <div class="card p-3 mb-3">
         <div class="card-title small fw-bold">Attribute Match %</div>
-        <div class="chart-container"><canvas id="attrChart{{ loop.index }}"></canvas></div>
+        <div class="chart-container"><canvas id="attrChart{{ fi }}"></canvas></div>
       </div>
       {% endif %}
 
-      <!-- Row detail table -->
-      <div class="table-responsive">
-        <table class="table table-bordered table-sm" id="rowTable{{ loop.index }}" style="width:100%">
-          <thead class="table-dark">
-            <tr>
-              <th class="sticky-col">{{ r.row_key }}</th>
-              <th>Status</th>
-              <th>Row Match %</th>
-              {% for col in r.columns %}
-              <th>{{ col }}</th>
-              {% endfor %}
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in r.rows %}
-            <tr class="{{ row.status | row_class }}">
-              <td class="sticky-col fw-bold">{{ row.key }}</td>
-              <td>
-                {% if row.status == 'compared' %}
-                  <span class="badge bg-primary">compared</span>
-                {% elif row.status == 'missing_in_actual' %}
-                  <span class="badge bg-danger">missing</span>
-                {% else %}
-                  <span class="badge bg-info text-dark">extra</span>
-                {% endif %}
-              </td>
-              <td>
-                {% if row.status == 'compared' %}
-                  <span class="badge {{ row.row_match_pct | pct_badge }}">{{ row.row_match_pct | pct }}</span>
-                {% else %}&mdash;{% endif %}
-              </td>
-              {% for col in r.columns %}
-              {% if row.status == 'compared' %}
-                {% set cell = row.cells[col] %}
-                <td class="{{ cell | cell_class }}">
-                  {% if cell.match %}
-                    <pre class="cell-val">{{ cell.expected }}</pre>
+      <!-- Sub-tabs: All Rows / Mismatch Detail -->
+      <ul class="nav nav-tabs mb-2" id="subTabs{{ fi }}">
+        <li class="nav-item">
+          <a class="nav-link active" data-target="allRows{{ fi }}" data-subtab="{{ fi }}" href="#">All Rows</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" data-target="mismatchDetail{{ fi }}" data-subtab="{{ fi }}" href="#">
+            Mismatch Detail
+            <span class="badge bg-danger ms-1">{{ mismatch_rows + missing_count }}</span>
+          </a>
+        </li>
+      </ul>
+
+      <div class="subtab-content">
+
+        <!-- ---- ALL ROWS tab ---- -->
+        <div class="subtab-pane show active" id="allRows{{ fi }}">
+          <!-- Filter buttons -->
+          <div class="mb-2 d-flex gap-2 flex-wrap align-items-center">
+            <span class="small text-muted me-1">Show:</span>
+            <button class="btn btn-sm btn-outline-secondary row-filter-btn active" data-filter="all"    data-table="{{ fi }}">All</button>
+            <button class="btn btn-sm btn-outline-danger   row-filter-btn"         data-filter="mismatch" data-table="{{ fi }}">Mismatches</button>
+            <button class="btn btn-sm btn-outline-warning  row-filter-btn"         data-filter="missing"  data-table="{{ fi }}">Missing in Actual</button>
+            <button class="btn btn-sm btn-outline-info     row-filter-btn"         data-filter="extra"    data-table="{{ fi }}">Extra in Actual</button>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-bordered table-sm" id="rowTable{{ fi }}" style="width:100%">
+              <thead class="table-dark">
+                <tr>
+                  <th class="sticky-col">{{ r.row_key }}</th>
+                  <th>Status</th>
+                  <th>Row Match %</th>
+                  {% for col in r.columns %}<th>{{ col }}</th>{% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in r.rows %}
+                {% set row_has_mismatch = (row.status == 'compared' and row.row_match_pct < 100.0) %}
+                <tr class="{{ row.status | row_class }}"
+                    data-row-status="{{ row.status }}"
+                    data-row-mismatch="{{ 'true' if row_has_mismatch else 'false' }}">
+                  <td class="sticky-col fw-bold">{{ row.key }}</td>
+                  <td>
+                    {% if row.status == 'compared' %}
+                      <span class="badge bg-primary">compared</span>
+                    {% elif row.status == 'missing_in_actual' %}
+                      <span class="badge bg-danger">missing</span>
+                    {% else %}
+                      <span class="badge bg-info text-dark">extra</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if row.status == 'compared' %}
+                      <span class="badge {{ row.row_match_pct | pct_badge }}">{{ row.row_match_pct | pct }}</span>
+                    {% else %}&mdash;{% endif %}
+                  </td>
+                  {% for col in r.columns %}
+                  {% if row.status == 'compared' %}
+                    {% set cell = row.cells[col] %}
+                    <td class="{{ cell | cell_class }}">
+                      {% if cell.match %}
+                        <pre class="cell-val">{{ cell.expected }}</pre>
+                      {% else %}
+                        <pre class="cell-val text-danger fw-bold">{{ cell.expected }}</pre>
+                        <pre class="cell-val text-primary">{{ cell.actual }}</pre>
+                        {% if cell.similarity < 100.0 %}
+                        <div class="pct-badge text-muted">sim: {{ cell.similarity | round(1) }}%</div>
+                        {% endif %}
+                      {% endif %}
+                    </td>
+                  {% elif row.status == 'missing_in_actual' %}
+                    <td class="row-missing"><pre class="cell-val text-muted">—</pre></td>
                   {% else %}
-                    <pre class="cell-val text-danger">E: {{ cell.expected }}</pre>
-                    <pre class="cell-val text-primary">A: {{ cell.actual }}</pre>
-                    <div class="pct-badge text-muted">sim: {{ cell.similarity | round(1) }}%</div>
+                    <td class="row-extra"><pre class="cell-val text-muted">—</pre></td>
                   {% endif %}
-                </td>
-              {% elif row.status == 'missing_in_actual' %}
-                <td class="row-missing"><pre class="cell-val text-muted">—</pre></td>
-              {% else %}
-                <td class="row-extra"><pre class="cell-val text-muted">—</pre></td>
-              {% endif %}
+                  {% endfor %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div><!-- /allRows -->
+
+        <!-- ---- MISMATCH DETAIL tab ---- -->
+        <div class="subtab-pane" id="mismatchDetail{{ fi }}">
+          {% set mismatch_entries = namespace(items=[]) %}
+          {% for row in r.rows %}
+            {% if row.status == 'missing_in_actual' %}
+              {% set mismatch_entries.items = mismatch_entries.items + [(row.key, '__ROW__', 'missing_in_actual', '', '', 0)] %}
+            {% elif row.status == 'extra_in_actual' %}
+              {% set mismatch_entries.items = mismatch_entries.items + [(row.key, '__ROW__', 'extra_in_actual', '', '', 0)] %}
+            {% elif row.status == 'compared' and row.row_match_pct < 100.0 %}
+              {% for col in r.columns %}
+                {% set cell = row.cells[col] %}
+                {% if not cell.match %}
+                  {% set mismatch_entries.items = mismatch_entries.items + [(row.key, col, 'cell_mismatch', cell.expected, cell.actual, cell.similarity)] %}
+                {% endif %}
               {% endfor %}
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+            {% endif %}
+          {% endfor %}
+
+          {% if not mismatch_entries.items %}
+          <div class="alert alert-success mt-2">No mismatches found — all compared rows match perfectly.</div>
+          {% else %}
+          <p class="text-muted small mb-2">
+            {{ mismatch_entries.items | length }} discrepanc{{ 'y' if mismatch_entries.items | length == 1 else 'ies' }} found.
+            <span class="legend-box ms-2" style="background:#f8d7da;border:1px solid #aaa;"></span>Expected&nbsp;
+            <span class="legend-box" style="background:#cfe2ff;border:1px solid #aaa;"></span>Actual
+          </p>
+          <div class="table-responsive">
+            <table class="table table-bordered table-sm" id="mismatchTable{{ fi }}" style="width:100%">
+              <thead class="table-dark">
+                <tr>
+                  <th>{{ r.row_key }}</th>
+                  <th>Column</th>
+                  <th>Type</th>
+                  <th style="background:#f8d7da;color:#333">Expected</th>
+                  <th style="background:#cfe2ff;color:#333">Actual</th>
+                  <th>Similarity</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for key, col, kind, exp_val, act_val, sim in mismatch_entries.items %}
+                <tr>
+                  <td class="fw-bold">{{ key }}</td>
+                  {% if kind == 'missing_in_actual' %}
+                  <td>—</td>
+                  <td><span class="badge bg-danger">missing row</span></td>
+                  <td class="row-missing text-muted">—</td>
+                  <td class="row-missing text-muted">not present</td>
+                  <td>—</td>
+                  {% elif kind == 'extra_in_actual' %}
+                  <td>—</td>
+                  <td><span class="badge bg-info text-dark">extra row</span></td>
+                  <td class="row-extra text-muted">not present</td>
+                  <td class="row-extra text-muted">—</td>
+                  <td>—</td>
+                  {% else %}
+                  <td>{{ col }}</td>
+                  <td><span class="badge bg-warning text-dark">value mismatch</span></td>
+                  <td class="cell-mismatch"><pre class="cell-val">{{ exp_val }}</pre></td>
+                  <td style="background:#cfe2ff"><pre class="cell-val">{{ act_val }}</pre></td>
+                  <td><span class="badge {{ sim | pct_badge }}">{{ sim | round(1) }}%</span></td>
+                  {% endif %}
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% endif %}
+        </div><!-- /mismatchDetail -->
+
+      </div><!-- /subtab-content -->
     </div><!-- /file -->
     {% endfor %}
 
@@ -264,8 +371,51 @@ _TEMPLATE = r"""<!DOCTYPE html>
 $(document).ready(function(){
   $('#fileSummaryTable').DataTable({ paging: false, searching: false, info: false });
   {% for r in results %}
-  $('#rowTable{{ loop.index }}').DataTable({ pageLength: 25, scrollX: true });
+  {% set fi = loop.index %}
+  $('#rowTable{{ fi }}').DataTable({ pageLength: 25, scrollX: true });
+  if ($('#mismatchTable{{ fi }}').length) {
+    $('#mismatchTable{{ fi }}').DataTable({ pageLength: 50, scrollX: true });
+  }
   {% endfor %}
+});
+
+// ---- Sub-tab switching (All Rows / Mismatch Detail) ----
+document.querySelectorAll('.nav-tabs .nav-link[data-subtab]').forEach(function(link) {
+  link.addEventListener('click', function(e) {
+    e.preventDefault();
+    var fi = this.getAttribute('data-subtab');
+    var targetId = this.getAttribute('data-target');
+    document.querySelectorAll('#subTabs' + fi + ' .nav-link').forEach(function(l){ l.classList.remove('active'); });
+    document.querySelectorAll('#file' + fi + ' .subtab-pane').forEach(function(p){ p.classList.remove('show'); });
+    this.classList.add('active');
+    var pane = document.getElementById(targetId);
+    if (pane) pane.classList.add('show');
+  });
+});
+
+// ---- Row filter buttons ----
+document.querySelectorAll('.row-filter-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var fi = this.getAttribute('data-table');
+    var filter = this.getAttribute('data-filter');
+    // toggle active style
+    document.querySelectorAll('.row-filter-btn[data-table="' + fi + '"]').forEach(function(b){ b.classList.remove('active'); });
+    this.classList.add('active');
+
+    var dt = $('#rowTable' + fi).DataTable();
+    dt.rows().every(function() {
+      var tr = $(this.node());
+      var status = tr.data('row-status');
+      var hasMismatch = tr.data('row-mismatch') === true || tr.data('row-mismatch') === 'true';
+      var show = false;
+      if (filter === 'all') show = true;
+      else if (filter === 'mismatch') show = (status === 'compared' && hasMismatch);
+      else if (filter === 'missing')  show = (status === 'missing_in_actual');
+      else if (filter === 'extra')    show = (status === 'extra_in_actual');
+      tr.toggle(show);
+    });
+    dt.columns.adjust();
+  });
 });
 
 // ---- Tab activation from pills ----

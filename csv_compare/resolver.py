@@ -30,6 +30,10 @@ def pair_files(expected_spec: str, actual_spec: str) -> List[Tuple[Path, Path]]:
     expected = resolve_files(expected_spec)
     actual = resolve_files(actual_spec)
 
+    # If exactly one file on each side, pair them directly (no stem matching needed).
+    if len(expected) == 1 and len(actual) == 1:
+        return [(expected[0], actual[0])]
+
     actual_by_stem = {p.stem: p for p in actual}
 
     pairs: List[Tuple[Path, Path]] = []

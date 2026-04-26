@@ -57,7 +57,7 @@ cd csv-compare-util
 ### 2. (Recommended) Create a virtual environment
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate        # macOS / Linux
 .venv\Scripts\activate           # Windows
 ```
@@ -88,6 +88,9 @@ csv-compare --expected <expected> --actual <actual> --output <dir> --row-key <co
 
 # Or without installing
 python -m csv_compare.cli --expected <expected> --actual <actual> --output <dir> --row-key <col>
+
+# Example 
+python -m csv_compare.cli --expected sample/customers.csv --actual sample/customers_actual.csv --output output --row-key Index
 ```
 
 ### Options
